@@ -1,0 +1,30 @@
+[tower]
+tsitwr-ansible-01.noc.tvlk.cloud ansible_ssh_user=ubuntu ansible_become=yes ansible_become_user=root
+tsitwr-ansible-02.noc.tvlk.cloud ansible_ssh_user=ubuntu ansible_become=yes ansible_become_user=root
+tsitwr-ansible-03.noc.tvlk.cloud ansible_ssh_user=ubuntu ansible_become=yes ansible_become_user=root
+
+[database]
+
+[all:vars]
+tvlk_use_credstash=1
+
+#admin_password=''
+
+pg_host='tsitwr-postgres-01.noc.tvlk.cloud'
+pg_port='5432'
+
+pg_database='tower'
+pg_username='tower'
+#pg_password=''
+
+rabbitmq_port=5672
+rabbitmq_vhost=tower
+rabbitmq_username=tower
+#rabbitmq_password=''
+rabbitmq_cookie=cookiemonster
+
+# Needs to be true for fqdns and ip addresses
+rabbitmq_use_long_name=true
+
+#tvlk_google_oauth_key=''
+#tvlk_google_oauth_secret=''

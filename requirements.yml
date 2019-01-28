@@ -1,0 +1,5 @@
+- name: awslogs
+  src: https://github.com/traveloka/ansible-awslogs.git
+- name: awslogs-config
+  src: https://github.com/traveloka/ansible-awslogs-config.git
+  

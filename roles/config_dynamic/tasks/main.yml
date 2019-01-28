@@ -1,0 +1,38 @@
+---
+- name: Set database to internal or external
+  set_fact:
+    config_dynamic_database: "{{ ( (pg_host is not defined or pg_host == '') or (pg_host | match('/.*')) ) | ternary('internal', 'external') }}"
+
+- name: Database decision
+  debug: var=config_dynamic_database
+
+- name: Set postgres host and port to local if not set
+  set_fact:
+    pg_host: '127.0.0.1'
+    pg_port: 5432
+  when: "pg_host is not defined or pg_host == ''"
+
+- name: Ensure connectivity to hosts and gather facts
+  setup:
+
+- name: Get effective uid
+  command: id -u
+  register: uid
+
+- name: Ensure user is root
+  fail: msg="UID on remote machine is {{ uid.stdout }} ({{ config_dynamic_user }} required). Check Ansible connection and become settings."
+  when: (uid.stdout | int) != config_dynamic_user
+
+- name: lookup secrets from credstash
+  set_fact:
+    admin_password: "{{ lookup('credstash', 'tvlk-prod.tower.admin.password', app='ansible', region='ap-southeast-1') }}"
+    tower_secret_key: "{{ lookup('credstash', 'tvlk-prod.tower.secret', app='ansible', region='ap-southeast-1') }}"
+    pg_password: "{{ lookup('credstash', 'tvlk-prod.tower.pg.password', app='ansible', region='ap-southeast-1') }}"
+    rabbitmq_password: "{{ lookup('credstash', 'tvlk-prod.tower.rabbitmq.password', app='ansible', region='ap-southeast-1') }}"
+    tvlk_google_oauth_key: "{{ lookup('credstash', 'tvlk-prod.tower.oauth.key', app='ansible', region='ap-southeast-1') }}"
+    tvlk_google_oauth_secret: "{{ lookup('credstash', 'tvlk-prod.tower.oauth.secret', app='ansible', region='ap-southeast-1') }}"
+  when: tvlk_use_credstash is defined and tvlk_use_credstash
+  no_log: True
+
+# Note: We don't validate postgres connectivity because the clients tools are not yet installed to validate with.
+# We could verify socket connectivity to the ip/port but would need to do so using delegate_to
