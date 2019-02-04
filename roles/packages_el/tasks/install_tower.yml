@@ -20,8 +20,8 @@
 - name: Install the Tower RPM.
   yum:
     name: '{{tower_package_rpm}}'
-    enablerepo: "{{ tower_enable_repo }}"
-    disable_gpg_check: '{{not gpgcheck|bool}}'
+    enablerepo: "{{ ansible_tower_repo }},{{ ansible_tower_dependency_repo }}"
+    disable_gpg_check: '{{ not gpgcheck | bool }}'
     state: latest
   tags: packages_el_yum_install_tower
 
@@ -30,4 +30,3 @@
     name: ansible
     state: latest
   when: upgrade_ansible_with_tower
-

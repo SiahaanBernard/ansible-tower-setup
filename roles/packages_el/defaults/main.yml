@@ -31,3 +31,6 @@ el_obsolete:
 
 packages_el_install_tower: true
 packages_el_install_postgres: false
+
+ansible_tower_repo: ansible-tower
+ansible_tower_dependency_repo: ansible-tower-dependencies
