@@ -28,18 +28,27 @@
     - /var/lib/postgresql/9.4/main/conf.d
     - /var/lib/postgresql/9.6/main/conf.d
 
-- name: pg_upgrade
-  command: |
-    /usr/lib/postgresql/9.6/bin/pg_upgrade \
-      -d /var/lib/postgresql/9.4/main \
-      -D /var/lib/postgresql/9.6/main \
-      -b /usr/lib/postgresql/9.4/bin/ \
-      -B /usr/lib/postgresql/9.6/bin/
-  no_log: True
-  become: True
-  become_user: postgres
-  args:
-    chdir: /var/lib/postgresql
+- block:
+  - name: pg_upgrade
+    command: |
+      /usr/lib/postgresql/9.6/bin/pg_upgrade \
+        -d /var/lib/postgresql/9.4/main \
+        -D /var/lib/postgresql/9.6/main \
+        -b /usr/lib/postgresql/9.4/bin/ \
+        -B /usr/lib/postgresql/9.6/bin/
+    become: True
+    become_user: postgres
+    args:
+      chdir: /var/lib/postgresql
+    no_log: True
+  rescue:
+  - service:
+      name: postgresql
+      state: started
+      enabled: yes
+  - fail:
+      msg: "Postgres upgrade to 9.6 failed."
+    no_log: False
 
 - name: Uninstall Postgresql 9.4
   apt:

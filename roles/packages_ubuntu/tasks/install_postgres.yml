@@ -10,7 +10,7 @@
 - name: Set upgrade flag if Postgres is installed and not at version 9.6
   set_fact:
     upgrade_postgres: "{{ psql.rc == 0 and '9.6' not in psql.stdout }}"
-  when: not psql | failed
+  when: not psql is failed
 
 - name: Install postgres
   apt:
