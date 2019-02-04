@@ -11,13 +11,6 @@
         - 'default.yml'
       paths: '../vars'
 
-- name: Install yum repositories
-  copy:
-    src: '{{ item }}'
-    dest: '/etc/yum.repos.d/{{ item }}'
-  with_items: "{{ yum_online_repo_files }}"
-  when: not bundle_install
-
 - name: Install yum repo keys
   copy:
     src: '{{ item }}'
@@ -123,13 +116,3 @@
   register: yum_repo
   when: not bundle_install
   tags: packages_el_yum_install_tower
-
-- name: Set bundle repo to enable
-  set_fact:
-    tower_enable_repo: tower
-  when: bundle_install
-
-- name: Set online repo to enable
-  set_fact:
-    tower_enable_repo: "ansible-tower"
-  when: not bundle_install
