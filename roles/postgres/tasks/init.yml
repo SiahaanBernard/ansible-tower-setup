@@ -17,4 +17,4 @@
   wait_for:
     host: localhost
     port: 5432
-  when: postgresql_start|changed
+  when: postgresql_start is changed

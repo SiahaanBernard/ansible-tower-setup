@@ -36,14 +36,14 @@
   service:
     name: '{{ postgres_init_name }}'
     state: restarted
-  when: pg_hba_conf|changed or pg_general_conf|changed
+  when: pg_hba_conf is changed or pg_general_conf is changed
   register: postgresql_restart
 
 - name: wait for postgresql restart
   wait_for:
     host: localhost
     port: 5432
-  when: postgresql_restart|changed
+  when: postgresql_restart is changed
 
 - name: configure postgresql to start automatically
   service: 
