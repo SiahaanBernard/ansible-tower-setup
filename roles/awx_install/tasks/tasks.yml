@@ -26,12 +26,7 @@
   file: path=/etc/tower/conf.d state=directory owner=root group={{aw_group}} mode=0750
 
 - name: configure tower log directory
-  file: 
-    path: '/var/log/tower'
-    state: directory 
-    owner: '{{aw_user}}' 
-    group: '{{aw_group}}' 
-    mode: '0755'
+  file: path=/var/log/tower state=directory owner={{aw_user}} group={{aw_group}} mode=0750
 
 # When running with an external database, we need to remove 'postgresql' from
 # the list of tower managed services.
@@ -43,7 +38,7 @@
     group: root
     mode: '0644'
 
-- name: write secret key if it defined
+- name: write secret key if it is defined
   copy:
     content: '{{ tower_secret_key }}'
     dest: /etc/tower/SECRET_KEY
@@ -54,18 +49,21 @@
   when: tower_secret_key is defined
   no_log: True
 
-- when: tower_secret_key is not defined
-  block:
-  - name: Fetch the secret key from the primary node.
-    slurp:
-      src: /etc/tower/SECRET_KEY
-    when: inventory_hostname == groups['tower'][0]
-    register: secret_key
-    no_log: True
+- name: Fetch the secret key from the primary node.
+  slurp:
+    src: /etc/tower/SECRET_KEY
+  when: inventory_hostname == groups['tower'][0]
+  register: secret_key
+  no_log: True
+
+- name: Fail play when grabbing SECRET_KEY fails
+  fail:
+    msg: "Failed to read /etc/tower/SECRET_KEY from primary tower node"
+  when: "hostvars[groups['tower'][0]]['secret_key'].content is not defined"
 
 - name: Place the secret key on secondary nodes.
   copy:
-    content: '{{ tower_secret_key }}'
+    content: "{{ hostvars[groups['tower'][0]]['secret_key']['content'] | b64decode }}"
     dest: /etc/tower/SECRET_KEY
     force: yes
     mode: '0640'
@@ -123,15 +121,27 @@
     - restart supervisor
   tags: awx_install_db_settings
 
-- name: Configure Towers celeryd settings.
+- name: Configure Towers channels settings.
   template:
-    dest: /etc/tower/conf.d/celeryd.py
+    dest: /etc/tower/conf.d/channels.py
     force: yes
-    src: celeryd.py.j2
+    src: channels.py.j2
     mode: '0640'
     owner: root
     group: '{{ aw_group }}'
   when: "rabbitmq_password is defined and rabbitmq_password != ''"
+  notify:
+    - restart nginx
+    - restart supervisor
+
+- name: Configure the Insights URL
+  template:
+    dest: /etc/tower/conf.d/insights.py
+    force: yes
+    src: insights.py.j2
+    mode: '0640'
+    owner: root
+    group: '{{ aw_group }}'
   notify:
     - restart nginx
     - restart supervisor
@@ -144,29 +154,7 @@
   set_fact:
     awx_instance_groups: "{{ awx_instance_groups }} + [ '{{ item|regex_replace('^instance_group_','') }}' ]"
   with_items: "{{group_names}}"
-  when: item | match("(^tower|^instance_group_.+)$")
-
-- name: Initialize controlling queues
-  set_fact:
-    rabbitmq_controlling_queues: []
-
-- name: Determine isolated queues that this host controls
-  set_fact:
-    rabbitmq_controlling_queues: "{{ rabbitmq_controlling_queues }} + [ '{{ item|regex_replace('^isolated_group_','') }}' ]"
-  with_items: "{{ groups }}"
-  when:
-    - item | match("(^isolated_group_.+)$")
-    - "'instance_group_' + hostvars[groups[item][0]]['controller'] in group_names or hostvars[groups[item][0]]['controller'] in group_names"
-
-- name: Initial routeable groups for all hosts
-  set_fact:
-    all_tower_queues: []
-
-- name: Determine all routeable groups
-  set_fact:
-    all_tower_queues: "{{ all_tower_queues }} + [ '{{ item|regex_replace('^instance_group_','') }}' ]"
-  with_items: "{{groups.keys()}}"
-  when: item | match("^instance_group_.+$")
+  when: item is match("(^tower|^instance_group_.+)$")
 
 - name: Install Tower rabbitmq settings
   template:
@@ -218,7 +206,7 @@
   delay: 2
 
 - name: Migrate the Tower database schema (may take awhile when upgrading).
-  command: awx-manage migrate --noinput --fake-initial
+  command: awx-manage migrate --noinput
   become_user: '{{ aw_user }}'
   become: True
   register: tower_migrate
@@ -303,7 +291,13 @@
     state: 'directory'
     owner: '{{aw_user}}'
     group: '{{aw_group}}'
-    mode: '0755'
+    recurse: true
+    mode: 'u=rwX,g=rX,o-rwx'
+
+- name: Get configuration files to set permissions on
+  shell: ls /etc/tower/conf.d/*.py
+  register: configuration_files
+  changed_when: false
 
 - name: Clean up any poorly-permissioned Tower configuration files on upgrade
   file:
@@ -314,9 +308,7 @@
     mode: 0640
   become_user: root
   become: True
-  with_fileglob:
-    - "/etc/tower/conf.d/*.py"
-    - "/etc/tower/settings.py"
+  with_items: "{{ configuration_files.stdout_lines }} + ['/etc/tower/settings.py']"
 
 - name: Check for Tower Super users
   shell: echo "from django.contrib.auth.models import User; nsu = User.objects.filter(is_superuser=True).count(); exit(0 if nsu > 0 else 1)" | awx-manage shell
@@ -332,7 +324,7 @@
   become_user: '{{ aw_user }}'
   become: True
   no_log: True
-  when: inventory_hostname == groups['tower'][0] and super_check > 0
+  when: inventory_hostname == groups['tower'][0] and super_check.rc > 0
 
 - name: update django super user password
   shell: awx-manage update_password --username='{{ admin_username }}' --password='{{ awx_install_admin_password }}'
@@ -358,4 +350,5 @@
     state: 'directory'
     owner: '{{aw_user}}'
     group: '{{aw_group}}'
-    mode: '0755'
+    recurse: true
+    mode: 'u=rwX,g=rX,o-rwx'

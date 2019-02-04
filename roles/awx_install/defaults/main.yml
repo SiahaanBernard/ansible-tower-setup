@@ -35,4 +35,3 @@ awx_install_supervisor_init_name: None
 awx_install_supervisor_socket_location: None
 awx_install_pg_init_name: None
 awx_install_home: '/var/lib/awx'
-
