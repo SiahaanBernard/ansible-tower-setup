@@ -10,7 +10,7 @@
     name: '{{item}}'
     persistent: yes
     state: 'true'
-  when: getenforce|success and getenforce.stdout.lower() != "disabled"
+  when: getenforce is success and getenforce.stdout.lower() != "disabled"
   with_items:
     - httpd_can_network_connect
 
@@ -26,6 +26,7 @@
   file:
     path: '{{ item }}'
     group: '{{ aw_group }}'
+    follow: yes
     mode: 0640
     owner: root
   when: inventory_hostname == groups['tower'][0]
@@ -49,7 +50,7 @@
 
 - name: place self-signed SSL certificates
   copy:
-    content: "{{ hostvars[groups['tower'][0]]['tower_cert']['content'].decode('base64') }}"
+    content: "{{ hostvars[groups['tower'][0]]['tower_cert']['content'] | b64decode }}"
     dest: /etc/tower/tower.cert
     group: '{{ aw_group }}'
     follow: yes
@@ -62,7 +63,7 @@
 
 - name: place self-signed SSL key file
   copy:
-    content: "{{ hostvars[groups['tower'][0]]['tower_key']['content'].decode('base64') }}"
+    content: "{{ hostvars[groups['tower'][0]]['tower_key']['content'] | b64decode }}"
     dest: /etc/tower/tower.key
     group: '{{ aw_group }}'
     follow: yes
